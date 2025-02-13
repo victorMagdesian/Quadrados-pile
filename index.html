@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Jogo de Empilhar Quadrados Vermelhos</title>
+  <style>
+    body {
+      background-color: #f0f0f0;
+      text-align: center;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+    canvas {
+      background-color: #fff;
+      border: 2px solid #000;
+      display: block;
+      margin: 0 auto;
+    }
+    #timer {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    #message {
+      font-size: 32px;
+      color: red;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Exibe o cronômetro -->
+  <div id="timer">Tempo: 0s</div>
+  <!-- Área do jogo -->
+  <canvas id="gameCanvas" width="300" height="650"></canvas>
+  <!-- Mensagens (Game Over, Vitória) -->
+  <div id="message"></div>
+  
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const timerElement = document.getElementById('timer');
+    const messageElement = document.getElementById('message');
+
+    // Configurações do jogo
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    const totalLevels = 13; // 13 andares (incluindo o bloco base)
+    const blockHeight = 50; // altura de cada bloco (cada "andar" tem 50px de altura)
+    const initialBlockWidth = 200; // largura do bloco base
+    const baseSpeed = 2; // velocidade base (pixels por frame)
+    const speedIncrement = 0.5; // incremento de velocidade a cada nível
+
+    let blocks = [];          // array que guarda os blocos fixos (empilhados)
+    let currentLevel = 0;     // nível atual (base é nível 0)
+    let movingBlock = null;   // bloco que está se movendo
+    let gameRunning = false;
+    let startTime = 0;
+    let elapsedTime = 0;
+    let animationId = null;
+
+    // Inicializa o jogo
+    function initGame() {
+      blocks = [];
+      currentLevel = 0;
+      gameRunning = true;
+      messageElement.textContent = "";
+      
+      // Cria o bloco base fixo, centralizado horizontalmente
+      const baseX = (canvasWidth - initialBlockWidth) / 2;
+      const baseY = canvasHeight - blockHeight;
+      const baseBlock = {
+        x: baseX,
+        y: baseY,
+        width: initialBlockWidth,
+        height: blockHeight
+      };
+      blocks.push(baseBlock);
+      
+      // Inicia o primeiro bloco móvel (nível 1)
+      createMovingBlock();
+
+      // Reinicia o cronômetro
+      startTime = Date.now();
+      elapsedTime = 0;
+      timerElement.textContent = "Tempo: 0s";
+
+      // Inicia o loop de animação
+      if(animationId) {
+        cancelAnimationFrame(animationId);
+      }
+      animationId = requestAnimationFrame(gameLoop);
+    }
+
+    // Cria o bloco móvel para o próximo nível
+    function createMovingBlock() {
+      // O novo bloco terá a mesma largura que o último bloco empilhado
+      const lastBlock = blocks[blocks.length - 1];
+      const blockWidth = lastBlock.width;
+      // Posiciona o bloco um "andar" acima
+      const y = lastBlock.y - blockHeight;
+
+      // Inicia da esquerda e se move para a direita inicialmente
+      movingBlock = {
+        x: 0,
+        y: y,
+        width: blockWidth,
+        height: blockHeight,
+        speed: baseSpeed + currentLevel * speedIncrement,
+        direction: 1 // 1 para direita; -1 para esquerda
+      };
+    }
+
+    // Loop principal do jogo
+    function gameLoop() {
+      if (!gameRunning) return;
+      
+      update();
+      draw();
+      
+      // Atualiza o cronômetro
+      elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+      timerElement.textContent = "Tempo: " + elapsedTime + "s";
+      
+      animationId = requestAnimationFrame(gameLoop);
+    }
+
+    // Atualiza a posição do bloco móvel
+    function update() {
+      if (movingBlock) {
+        movingBlock.x += movingBlock.speed * movingBlock.direction;
+        // Inverte a direção se bater nas bordas
+        if (movingBlock.x <= 0) {
+          movingBlock.x = 0;
+          movingBlock.direction = 1;
+        } else if (movingBlock.x + movingBlock.width >= canvasWidth) {
+          movingBlock.x = canvasWidth - movingBlock.width;
+          movingBlock.direction = -1;
+        }
+      }
+    }
+
+    // Desenha o cenário: grid, blocos empilhados e o bloco móvel
+    function draw() {
+      // Limpa o canvas
+      ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+      
+      // Desenha o grid quadriculado (horizontal e vertical)
+      drawGrid();
+
+      // Desenha os blocos fixos (empilhados)
+      blocks.forEach(block => {
+        ctx.fillStyle = 'red';
+        ctx.fillRect(block.x, block.y, block.width, block.height);
+        ctx.strokeStyle = 'black';
+        ctx.strokeRect(block.x, block.y, block.width, block.height);
+      });
+      
+      // Desenha o bloco que está se movendo
+      if (movingBlock) {
+        ctx.fillStyle = 'red';
+        ctx.fillRect(movingBlock.x, movingBlock.y, movingBlock.width, movingBlock.height);
+        ctx.strokeStyle = 'black';
+        ctx.strokeRect(movingBlock.x, movingBlock.y, movingBlock.width, movingBlock.height);
+      }
+    }
+
+    // Desenha um grid com 13 linhas horizontais e linhas verticais para melhor visualização
+    function drawGrid() {
+      ctx.strokeStyle = '#ddd';
+      // Linhas horizontais (para os andares)
+      for (let i = 0; i <= totalLevels; i++) {
+        let y = canvasHeight - i * blockHeight;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvasWidth, y);
+        ctx.stroke();
+      }
+      // Linhas verticais (opcional)
+      const numCols = 10;
+      const colWidth = canvasWidth / numCols;
+      for (let i = 0; i <= numCols; i++) {
+        let x = i * colWidth;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvasHeight);
+        ctx.stroke();
+      }
+    }
+
+    // Trata o clique do jogador
+    function handleClick() {
+      if (!gameRunning) {
+        // Se o jogo terminou, reinicia ao clicar
+        initGame();
+        return;
+      }
+      
+      if (movingBlock) {
+        // O jogador clica para "fixar" o bloco móvel
+        // Verifica a sobreposição com o bloco imediatamente inferior
+        const lastBlock = blocks[blocks.length - 1];
+        const overlapStart = Math.max(movingBlock.x, lastBlock.x);
+        const overlapEnd = Math.min(movingBlock.x + movingBlock.width, lastBlock.x + lastBlock.width);
+        const overlapWidth = overlapEnd - overlapStart;
+        
+        if (overlapWidth <= 0) {
+          // Sem sobreposição: fim de jogo
+          gameOver();
+          return;
+        } else {
+          // Ajusta o bloco para a área de sobreposição
+          movingBlock.x = overlapStart;
+          movingBlock.width = overlapWidth;
+          // Adiciona o bloco à pilha
+          blocks.push(movingBlock);
+          currentLevel++;
+          
+          // Se empilhou os 13 andares, o jogador vence
+          if (currentLevel >= totalLevels) {
+            winGame();
+            return;
+          }
+          
+          // Cria o próximo bloco móvel (acima do atual)
+          createMovingBlock();
+        }
+      }
+    }
+
+    // Finaliza o jogo em caso de derrota
+    function gameOver() {
+      gameRunning = false;
+      messageElement.textContent = "Game Over! Clique para reiniciar.";
+      cancelAnimationFrame(animationId);
+    }
+
+    // Finaliza o jogo em caso de vitória
+    function winGame() {
+      gameRunning = false;
+      messageElement.textContent = "Você venceu! Tempo: " + elapsedTime + "s. Clique para reiniciar.";
+      cancelAnimationFrame(animationId);
+    }
+
+    // Evento: clique no canvas
+    canvas.addEventListener('click', handleClick);
+
+    // Inicia o jogo ao carregar a página
+    window.onload = initGame;
+  </script>
+</body>
+</html>
